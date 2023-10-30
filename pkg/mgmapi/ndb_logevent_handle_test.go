@@ -124,3 +124,36 @@ func TestNdbLogEventHandle_RegisterEventCallbackWrapper(t *testing.T) {
 		t.Error("RegisterEventCallback callback failed : ", err)
 	}
 }
+
+func TestNdbLogEventHandle_WithBackupCommand(t *testing.T) {
+
+	client, err := mgmapi.NewMgmClient(logEventTestConnectString)
+	if err != nil {
+		t.Fatal("Failed to create management server : ", err)
+	}
+
+	// Register callback for when the backup completes
+	backupId := new(uint64)
+	err, errChan := mgmapi.RegisterEventCallback(context.Background(), logEventTestConnectString, func(e *mgmapi.Event) error {
+		t.Log(e)
+		if e.Type != mgmapi.EventTypeBackupCompleted || e.Data["backup_id"] != *backupId {
+			t.Error("Received unexpected backupId or event type")
+		}
+		return nil
+	}, mgmapi.EventTypeBackupCompleted)
+
+	if err != nil {
+		t.Error("RegisterEventCallback failed : ", err)
+	}
+
+	// Start the actual backup
+	*backupId, err = client.StartBackup()
+	if err != nil {
+		t.Fatal("Failed to start backup : ", err)
+	}
+
+	// check for errors in the callback
+	if err := <-errChan; err != nil {
+		t.Error("RegisterEventCallback callback failed : ", err)
+	}
+}

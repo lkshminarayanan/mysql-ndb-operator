@@ -26,6 +26,7 @@ type MgmClient interface {
 	StopNodes(nodeIds []int) error
 	TryReserveNodeId(nodeId int, nodeType NodeTypeEnum) (int, error)
 	CreateNodeGroup(nodeIds []int) (int, error)
+	StartBackup() (uint64, error)
 
 	GetConfigVersion(nodeID ...int) (uint32, error)
 	GetDataMemory(dataNodeId int) (uint64, error)
@@ -612,6 +613,41 @@ func (mci *mgmClientImpl) CreateNodeGroup(nodeIds []int) (int, error) {
 	}
 
 	return ng, nil
+}
+
+// StartBackup starts the backup and returns.
+// Use the NdbLogEventHandle to wait for or to register a callback to run when Backup completes.
+func (mci *mgmClientImpl) StartBackup() (uint64, error) {
+
+	// command :
+	// start backup
+	// completed: 1 (to wait for backup to start before returning; use 0 to not wait at all or 2 to wait until backup completes)
+	// TODO: add support for other required options like password
+
+	// reply :
+	// start backup reply
+	// result: Ok
+	// id: <Id of the backup started> (Only if completed value > 0)
+
+	// build args
+	args := map[string]interface{}{
+		"completed": 1,
+	}
+
+	// send the command and read the reply
+	reply, err := mci.executeCommand(
+		"start backup", args, false,
+		[]string{"start backup reply", "result", "id"})
+	if err != nil {
+		return 0, err
+	}
+
+	backupID, err := strconv.ParseUint(reply["id"], 10, 64)
+	if err != nil {
+		return 0, debug.InternalError("id in start backup reply has unexpected format : " + err.Error())
+	}
+
+	return backupID, nil
 }
 
 // getConfig extracts the value of the config variable 'configKey'
