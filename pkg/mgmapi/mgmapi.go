@@ -335,11 +335,14 @@ func (mci *mgmClientImpl) executeCommand(
 		replyDetails["Content"] = content
 	}
 
-	// Validate the reply details.
-	// If there is a 'result' key, check if it is 'Ok'
-	if result, exists := replyDetails["result"]; exists && result != "Ok" {
-		// Command failed
-		return nil, errors.New(result)
+	if command != "listen event" {
+		// Validate the reply details.
+		// If there is a 'result' key, check if it is 'Ok'
+		// This check is skipped for 'listen event' as it has a different reply format
+		if result, exists := replyDetails["result"]; exists && result != "Ok" {
+			// Command failed
+			return nil, errors.New(result)
+		}
 	}
 
 	// Check if expected details are present.
